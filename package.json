@@ -10,13 +10,14 @@
     "start": "node dist/index.cjs",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "node --test",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",
+    "@swc/core": "^1.15.18",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
@@ -30,11 +31,14 @@
     "openai": "^6.31.0",
     "pg": "^8.20.0",
     "redis": "^5.11.0",
+    "swc-loader": "^0.2.7",
+    "webpack": "^5.105.4",
+    "webpack-cli": "^7.0.2",
+    "webpack-node-externals": "^3.0.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@swc/core": "^1.15.18",
     "@types/bcrypt": "^6.0.0",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
@@ -47,12 +51,8 @@
     "eslint": "^10.0.3",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
-    "swc-loader": "^0.2.7",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.1",
-    "webpack": "^5.105.4",
-    "webpack-cli": "^7.0.2",
-    "webpack-node-externals": "^3.0.0"
+    "typescript-eslint": "^8.57.1"
   }
 }
