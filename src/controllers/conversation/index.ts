@@ -1,6 +1,10 @@
 import conversationService from "@/services/conversation/conversation.service.ts";
 import express from "express";
 import { BadRequestError } from "@/core/error.response.ts";
+import {
+  isSupportedAttachment,
+  type ChatAttachment,
+} from "@/helpers/attachment-context.ts";
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -10,6 +14,28 @@ const parseUuid = (value: unknown, fieldName: string): string => {
     throw new BadRequestError(`${fieldName} must be a valid UUID`);
   }
   return value;
+};
+
+const parseAttachments = (value: unknown): ChatAttachment[] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .filter((item): item is ChatAttachment => {
+      if (!item || typeof item !== "object") return false;
+      const maybeAttachment = item as Record<string, unknown>;
+      return typeof maybeAttachment.url === "string";
+    })
+    .map((item) => ({
+      url: item.url.trim(),
+      ...(item.name?.trim() ? { name: item.name.trim() } : {}),
+      ...(item.contentType?.trim()
+        ? { contentType: item.contentType.trim() }
+        : {}),
+      ...(item.kind === "image" || item.kind === "document"
+        ? { kind: item.kind }
+        : {}),
+    }))
+    .filter((item) => item.url.length > 0);
 };
 
 class ConversationController {
@@ -110,6 +136,15 @@ class ConversationController {
     try {
       const conversationId = parseUuid(req.params.id, "conversationId");
       const text = req.body.text as string;
+      const attachments = parseAttachments(req.body.attachments);
+      const hasUnsupportedAttachment = attachments.some(
+        (attachment) => !isSupportedAttachment(attachment),
+      );
+      if (hasUnsupportedAttachment) {
+        throw new BadRequestError(
+          "Only image and document attachments are supported",
+        );
+      }
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -119,6 +154,48 @@ class ConversationController {
 
       const result = await conversationService.streamChatWithConversation(
         conversationId,
+        req.userId,
+        text,
+        attachments,
+        (chunk) => {
+          res.write(`event: chunk\ndata: ${JSON.stringify({ chunk })}\n\n`);
+        },
+      );
+
+      res.write(`event: done\ndata: ${JSON.stringify(result)}\n\n`);
+      res.end();
+    } catch (error) {
+      if (!streamStarted) {
+        return next(error);
+      }
+
+      const message =
+        error instanceof Error ? error.message : "Internal Server Error";
+      res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`);
+      res.end();
+    }
+  };
+
+  resendEditedChat = async (
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    let streamStarted = false;
+    try {
+      const conversationId = parseUuid(req.params.id, "conversationId");
+      const messageId = parseUuid(req.params.messageId, "messageId");
+      const text = req.body.text as string;
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      streamStarted = true;
+      res.flushHeaders?.();
+
+      const result = await conversationService.streamResendEditedMessage(
+        conversationId,
+        messageId,
         req.userId,
         text,
         (chunk) => {

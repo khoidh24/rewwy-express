@@ -9,5 +9,6 @@ router.get("/:id", conversationController.detail);
 router.patch("/:id", conversationController.rename);
 router.delete("/:id", conversationController.remove);
 router.post("/:id/chat", conversationController.chat);
+router.post("/:id/messages/:messageId/resend", conversationController.resendEditedChat);
 
 export default router;
