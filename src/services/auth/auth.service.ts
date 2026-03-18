@@ -11,7 +11,11 @@ import { eq } from "drizzle-orm";
 import bcrypt from "bcrypt";
 import { CREATED, OK } from "@/core/success.response.ts";
 import { env } from "@/config/index.ts";
-import { generateToken, verifyToken, type JwtExpiresIn } from "@/helpers/token.ts";
+import {
+  generateToken,
+  verifyToken,
+  type JwtExpiresIn,
+} from "@/helpers/token.ts";
 import logger from "@/middleware/logger.ts";
 import { client as redisClient } from "@/database/index.ts";
 import { parseExpiresInToSeconds } from "@/utils/time.ts";
@@ -23,6 +27,17 @@ class AuthService {
     try {
       if (!email || !password || !displayName) {
         throw new BadRequestError("Missing required fields");
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new BadRequestError("Please enter a valid email address");
+      }
+
+      if (password.length < 8) {
+        throw new BadRequestError(
+          "Password must be at least 8 characters long",
+        );
       }
 
       const existingUser = await db
@@ -58,6 +73,17 @@ class AuthService {
     try {
       if (!email || !password) {
         throw new BadRequestError("Missing required fields");
+      }
+
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new BadRequestError("Please enter a valid email address");
+      }
+
+      if (password.length < 8) {
+        throw new BadRequestError(
+          "Password must be at least 8 characters long",
+        );
       }
 
       const user = await db.select().from(users).where(eq(users.email, email));
@@ -143,7 +169,9 @@ class AuthService {
       }
 
       if (session.refreshToken !== refreshToken) {
-        throw new UnauthorizedError("Refresh token does not match active session");
+        throw new UnauthorizedError(
+          "Refresh token does not match active session",
+        );
       }
 
       const newAccessToken = generateToken(
@@ -183,7 +211,9 @@ class AuthService {
         throw error;
       }
 
-      throw new InternalServerError("Something went wrong while refreshing token");
+      throw new InternalServerError(
+        "Something went wrong while refreshing token",
+      );
     }
   }
 
@@ -211,7 +241,9 @@ class AuthService {
       }
 
       if (session.refreshToken !== refreshToken) {
-        throw new UnauthorizedError("Refresh token does not match active session");
+        throw new UnauthorizedError(
+          "Refresh token does not match active session",
+        );
       }
 
       await redisClient.del(userId);
