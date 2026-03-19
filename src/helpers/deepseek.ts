@@ -41,4 +41,33 @@ export const completionStream = async (messages: RewwyChatMessage[]) => {
   });
 };
 
+export const generateConversationTitle = async (
+  userMessage: string,
+  assistantMessage: string,
+) => {
+  const response = await deepseek.chat.completions.create({
+    model: "deepseek-chat",
+    messages: [
+      {
+        role: "system",
+        content:
+          "Generate one concise chat title in plain text, 3-8 words, no quotes, no punctuation at the end.",
+      },
+      {
+        role: "user",
+        content: [
+          "Create a title for this conversation:",
+          `User: ${userMessage}`,
+          `Assistant: ${assistantMessage}`,
+        ].join("\n"),
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 24,
+    stream: false,
+  });
+
+  return response.choices[0]?.message?.content?.trim() || null;
+};
+
 export default deepseek;

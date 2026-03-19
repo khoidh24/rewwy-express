@@ -17,6 +17,7 @@ import {
 } from "@/helpers/attachment-context.ts";
 import {
   completionStream,
+  generateConversationTitle,
   type RewwyContentPart,
   type RewwyChatMessage,
 } from "@/helpers/deepseek.ts";
@@ -190,7 +191,7 @@ class ConversationService {
     }
 
     const conversation = await db
-      .select({ id: conversations.id })
+      .select({ id: conversations.id, title: conversations.title })
       .from(conversations)
       .where(
         and(
@@ -260,6 +261,25 @@ class ConversationService {
       throw new InternalServerError("AI did not return a response");
     }
 
+    let nextConversationTitle = conversation[0]?.title ?? "New conversation";
+    const isFirstTurn = existingMessages.length === 0;
+    if (isFirstTurn) {
+      const fallbackTitle =
+        userText ||
+        attachments.find((attachment) => attachment.name?.trim())?.name?.trim() ||
+        "New conversation";
+
+      try {
+        const generatedTitle = await generateConversationTitle(
+          userText || fallbackTitle,
+          finalReply,
+        );
+        nextConversationTitle = this.normalizeTitle(generatedTitle || fallbackTitle);
+      } catch {
+        nextConversationTitle = this.normalizeTitle(fallbackTitle);
+      }
+    }
+
     const savedAssistantMessage = await db
       .insert(messages)
       .values({
@@ -272,11 +292,12 @@ class ConversationService {
 
     await db
       .update(conversations)
-      .set({ updatedAt: new Date() })
+      .set({ title: nextConversationTitle, updatedAt: new Date() })
       .where(eq(conversations.id, conversationId));
 
     return {
       conversationId,
+      title: nextConversationTitle,
       reply: savedAssistantMessage[0]?.content ?? finalReply,
     };
   }
@@ -481,6 +502,12 @@ class ConversationService {
         ...imageAttachmentUrls.map((url, index) => `${index + 1}. ${url}`),
       ].join("\n"),
     };
+  }
+
+  private static normalizeTitle(rawTitle: string) {
+    const clean = rawTitle.replace(/\s+/g, " ").trim().replace(/^["']|["']$/g, "");
+    if (!clean) return "New conversation";
+    return clean.slice(0, 80);
   }
 
   private static serializeUserMessageContent(

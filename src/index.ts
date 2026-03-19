@@ -2,11 +2,10 @@ import compression from "compression";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
-import { env } from "./config/index.ts";
-import { rateLimitMiddleware } from "./middleware/rate-limit.ts";
-import routes from "./routes/index.ts";
 import morgan from "morgan";
+import { env } from "./config/index.ts";
 import { client as redisClient } from "./database/index.ts";
+import routes from "./routes/index.ts";
 
 const app = express();
 
@@ -14,7 +13,7 @@ app.use(cors());
 app.use(helmet());
 app.use(morgan("combined"));
 app.use(compression());
-app.use(rateLimitMiddleware);
+// app.use(rateLimitMiddleware);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/", routes);
